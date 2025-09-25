@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fresque Chronologique</title>
+    <style>
+        body {
+            margin:0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background:#0b0c10; 
+            color:#fff; 
+            overflow-x:hidden;
+        }
+        body.light { background:#f4f4f4; color:#111; }
+
+        .app { 
+            max-width:2000px; 
+            margin:0 auto; 
+            padding:20px; 
+            display:flex; 
+            flex-direction:column; 
+            align-items:center; 
+            position:relative; 
+        }
+
+        .actions {
+            margin:20px 0; 
+            display:flex; 
+            gap:12px; 
+            flex-wrap:wrap; 
+            justify-content:center;
+        }
+
+        .btn {
+            padding:10px 18px; 
+            border-radius:16px; 
+            border:none; 
+            cursor:pointer; 
+            font-weight:bold;
+            background: linear-gradient(145deg,#ffca28,#ffc107); 
+            color:#000;
+            transition: transform 0.2s, background 0.3s, box-shadow 0.3s;
+        }
+        .btn:hover { 
+            transform:scale(1.05); 
+            box-shadow:0 5px 15px rgba(255,202,40,0.6); 
+        }
+        body.light .btn { 
+            background:#333; 
+            color:#fff; 
+        }
+
+        .band {
+            display:flex; 
+            overflow-x:auto; 
+            gap:24px; 
+            padding:40px 0 20px 0;
+            scroll-snap-type:x mandatory; 
+            scroll-behavior:smooth; 
+            scroll-padding:50%;
+            scrollbar-width:none; 
+            transition: transform 0.5s ease;
+        }
+        .band::-webkit-scrollbar { display:none; }
+
+        .portrait {
+            flex:0 0 240px; 
+            height:350px; 
+            position:relative; 
+            border-radius:20px;
+            overflow:hidden; 
+            cursor:pointer; 
+            scroll-snap-align:center;
+            transition: transform 0.7s cubic-bezier(0.68,-0.55,0.27,1.55), box-shadow 0.7s ease;
+        }
+        .portrait.active { 
+            transform: scale(1.18) rotateY(5deg) translateY(-8px); 
+            z-index:2; 
+            box-shadow:0 20px 40px rgba(0,0,0,0.7); 
+        }
+        .portrait img {
+            width:100%; 
+            height:100%; 
+            object-fit:cover; 
+            display:block; 
+            transition: transform 0.7s ease; 
+        }
+        .portrait img.active { 
+            filter: hue-rotate(5deg) saturate(1.15) contrast(1.05); 
+        }
+
+        .overlay {
+            position:absolute; 
+            bottom:0; 
+            left:0; 
+            right:0;
+            background:linear-gradient(180deg,transparent,rgba(0,0,0,0.7));
+            color:#fff; 
+            padding:12px; 
+            text-align:center; 
+            opacity:0;
+            transition:opacity 0.5s;
+        }
+        .portrait.active .overlay { opacity:1; }
+
+	.picto { position:absolute; bottom:10px; left:10px; width:30px; height:30px; border-radius:50%;
+  	display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; text-shadow:0 0 4px #000;
+	}
+	.picto.engineer { background:orange; }
+	.picto.scientist { background:#1e90ff; }
+
+
+        .mini {
+            margin-top:20px; 
+            display:flex; 
+            gap:14px; 
+            overflow-x:auto; 
+            padding:8px; 
+            width:100%;
+            scroll-snap-type:x mandatory; 
+            scroll-behavior:smooth; 
+            scroll-padding:50%;
+            scrollbar-width:none;
+        }
+        .mini::-webkit-scrollbar { display:none; }
+        .mini-item {
+            flex:0 0 80px; 
+            border:2px solid transparent; 
+            border-radius:14px;
+            overflow:hidden; 
+            cursor:pointer; 
+            scroll-snap-align:center; 
+            text-align:center;
+            transition: transform 0.4s cubic-bezier(0.68,-0.55,0.27,1.55), border 0.4s, box-shadow 0.4s;
+        }
+        .mini-item.active { 
+            border-color:#ffca28; 
+            transform:scale(1.12); 
+            box-shadow:0 6px 18px rgba(255,202,40,0.5); 
+        }
+        .mini-item img { 
+            width:100%; 
+            height:64px; 
+            object-fit:cover; 
+            display:block; 
+            filter: grayscale(100%); 
+            border-radius:8px; 
+        }
+        .mini-item span { 
+            font-size:12px; 
+            color:#ccc; 
+        }
+
+        .central {
+            position:absolute; 
+            top:50%; 
+            left:50%; 
+            transform:translate(-50%, -50%);
+            background: rgba(0,0,0,0.95); 
+            padding:36px; 
+            border-radius:20px;
+            display:none; 
+            z-index:10; 
+            max-width:540px; 
+            text-align:center;
+            box-shadow:0 15px 50px rgba(0,0,0,0.7);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        .central.active { display:block; }
+
+        .portrait-lg { 
+            width:280px; 
+            height:280px; 
+            margin:0 auto 16px; 
+            border-radius:16px; 
+            overflow:hidden; 
+            position:relative; 
+            box-shadow:0 0 20px rgba(0,0,0,0.6); 
+        }
+        .portrait-lg img { 
+            width:100%; 
+            height:100%; 
+            object-fit:cover; 
+            position:absolute; 
+            top:0; 
+            left:0; 
+            transition: opacity 0.7s ease, transform 0.7s ease; 
+            filter: hue-rotate(5deg) saturate(1.15) contrast(1.05); 
+        }
+        .portrait-lg img.active { 
+            filter: grayscale(0%); 
+        }
+
+        #extraInfo { margin-top:12px; display:none; text-align:left; color:#ddd; }
+        #extraInfo h4 { margin:6px 0; font-size:14px; cursor:pointer; }
+        #extraInfo ul { padding-left:18px; margin:4px 0; }
+        #extraInfo p { font-size:14px; line-height:1.4; }
+
+        .timeline { 
+            width:100%; 
+            height:6px; 
+            background:#222; 
+            margin-top:24px; 
+            border-radius:3px; 
+            position:relative; 
+        }
+        .timeline-point { 
+            width:14px; 
+            height:14px; 
+            background:#ffca28; 
+            border-radius:50%; 
+            position:absolute; 
+            top:-4px; 
+            cursor:pointer;
+            transition: transform 0.4s cubic-bezier(0.68,-0.55,0.27,1.55), box-shadow 0.4s, background 0.4s;
+        }
+        .timeline-point:hover { 
+            transform:scale(1.5); 
+            box-shadow:0 0 8px #ffca28; 
+        }
+        .timeline-point.active { 
+            transform:scale(1.6); 
+            background:#ffeb3b; 
+            box-shadow:0 0 10px #ffeb3b; 
+        }
+        .timeline-point::after {
+            content:attr(data-year); 
+            position:absolute; 
+            top:-22px; 
+            left:-6px; 
+            padding:2px 6px; 
+            font-size:12px; 
+            background:rgba(0,0,0,0.8); 
+            border-radius:4px; 
+            color:#fff; 
+            opacity:0; 
+            pointer-events:none; 
+            transition:opacity 0.3s;
+        }
+        .timeline-point:hover::after, .timeline-point.active::after { 
+            opacity:1; 
+        }
+
+        .popup {
+            position:absolute; 
+            top:50%; 
+            left:50%; 
+            transform:translate(-50%, -50%);
+            background: rgba(0,0,0,0.95); 
+            color:#fff; 
+            padding:24px; 
+            border-radius:20px;
+            display:none; 
+            z-index:20; 
+            max-width:400px; 
+            text-align:left; 
+            box-shadow:0 10px 30px rgba(0,0,0,0.6);
+        }
+        .popup.active { display:block; }
+        .popup h3 { margin-top:0; }
+        .popup button { margin-top:12px; }
+    
+    /* Quiz styles */
+    .quiz-container{ text-align:left; margin-top:6px; }
+    .quiz-question{ font-size:18px; margin-bottom:12px; color:var(--accent,#ffca28); }
+    .quiz-options{ display:flex; flex-direction:column; gap:8px; }
+    .quiz-option{ padding:10px; background:rgba(255,255,255,0.06); border-radius:8px; cursor:pointer; border:2px solid transparent; transition:all .18s; }
+    .quiz-option:hover{ border-color:var(--accent,#ffca28); background:rgba(255,202,40,0.08); }
+    .quiz-option.correct{ border-color:#4caf50; background:rgba(76,175,80,0.14); }
+    .quiz-option.incorrect{ border-color:#f44336; background:rgba(244,67,54,0.14); }
+    .quiz-result{ margin-top:12px; padding:10px; border-radius:8px; display:none; }
+    .quiz-result.show{ display:block; }
+
+</style>
+</head>
+<body>
+
+<div class="app">
+    <div class="actions">
+        <button id="themeBtn" class="btn">🌞</button>
+        <button id="randomBtn" class="btn">🎲</button>
+        <button id="helpBtn" class="btn">❓</button>
+        <button id="artistBtn" class="btn">🖼️</button>
+        <button id="workBtn" class="btn">📖</button>
+        <button id="quizBtn" class="btn quiz">🧠 Quiz</button>
+        <button id="sortBtn" class="btn">Tri par profil</button>
+    </div>
+
+    <div class="band" id="band"></div>
+    <div class="mini" id="mini"></div>
+    <div class="timeline" id="timeline"></div>
+</div>
+
+<div class="central" id="centralBox">
+    <div class="portrait-lg">
+        <img id="centralImg" src="" alt="portrait" class="active">
+    </div>
+    <h2 id="centralName"></h2>
+    <p id="centralYears"></p>
+    <p id="centralShort"></p>
+    <div class="actions">
+        <button class="btn" id="morphBtn">Et si X était une femme ?</button>
+        <button class="btn" id="closeBtn">Fermer</button>
+    </div>
+    <div id="extraInfo">
+        <h4 id="extraTitle">En savoir plus :</h4>
+        <ul id="sameDomainList"></ul>
+        <h4>Description détaillée :</h4>
+        <p id="detailedDesc"></p>
+    </div>
+</div>
+
+<div class="popup" id="helpPopup">
+    <h3>Aide</h3>
+    <p>Ce carrousel permet de naviguer dans l’histoire des ingénieurs et scientifiques.</p>
+    <button class="btn" onclick="closePopup('helpPopup')">Fermer</button>
+</div>
+
+<div class="popup" id="artistPopup">
+    <h3>Artiste</h3>
+    <p>Gudmundur Gudmundsson – qui prendra le pseudonyme d'Erró - est né en 1932 en Islande où il a fréquenté l'Académie des beaux-arts de Reykjavik (1949-1951) avant celle d’Oslo de 1952 à 1954. Dans les années 1960, il expose avec les artistes de la Figuration narrative. Son œuvre est influencée par le Pop-Art américain qu’il découvre à New York. Ses compositions, souvent de très grand format, mêlent images publicitaires, photos d’actualité, bandes dessinées, affiches, documents politiques … et des personnages de toiles célèbres y côtoient des stars du cinéma, des hommes politiques ou des héros de bandes dessinées. Ses créations, souvent cocasses et ironiques, dénoncent les aberrations de la société contemporaine (guerres, pouvoirs totalitaires, consommation de masse, érotisme mercantile, …).</p>
+    <button class="btn" onclick="closePopup('artistPopup')">Fermer</button>
+</div>
+
+<div class="popup" id="workPopup">
+    <h3>Oeuvre : Les ingénieurs, Les savants</h3>
+    <p>Les portraits de 19 grands ingénieurs et industriels se succèdent par ordre chronologique, chacun associé à une représentation de leur invention et de son équivalent contemporain. Par exemple, au moteur à vapeur que Clément Ader avait monté sur son "avion", a succédé le réacteur que nous connaissons. L'autre fresque peinte par Erró pour la bibliothèque (Les savants) lui fait face. 23 portraits de savants se détachent au milieu de fragments d'images sur un filet souple dont le dessin a été calculé par ordinateur. Cette œuvre a été réalisée avec le soutien du Centre National des Arts Plastiques.</p>
+    <button class="btn" onclick="closePopup('workPopup')">Fermer</button>
+</div>
+
+<div class="popup" id="quizPopup" aria-hidden="true"><h3>Quiz sur <span id="quizPersonName">...</span></h3>
+<div class="quiz-container" id="quizContainer">
+    <div class="quiz-question" id="quizQuestion">Chargement...</div>
+    <div class="quiz-options" id="quizOptions"></div>
+    <div class="quiz-result" id="quizResult"></div>
+</div>
+<div style="display:flex; gap:10px; margin-top:12px; justify-content:flex-end;">
+    <button class="btn" id="newQuizBtn">Nouvelle question</button>
+    <button class="btn" onclick="closePopup('quizPopup')">Fermer</button>
+</div>
+</div>
+
+<script>
+// ==== DATA (inchangé mais tronqué ici pour clarté)
+const items=[ {id:1, cat:'Ingénieur', name:`Léonard de Vinci`,years:`1452–1519`,year:1500,img:`proto/leonardo.jpg`,
+   short:`Polymathe de la Renaissance : peintre, ingénieur, inventeur.`,
+   bio:`Ses carnets mêlent études d'anatomie, d'ingénierie, d'hydraulique et d'optique. Œuvres majeures : la Joconde, La Cène. Esquisses d'hélicoptère et de chars.`,
+   morphName:`Hypatie d'Alexandrie`, morphYears:`350/370-415`, morphImg:`proto/hypatia.jpg`,
+   morphShort:`Femme de lettres et de sciences, elle est à la tête de l'école néoplatonicienne d'Alexandrie, au sein de laquelle elle a enseigné la philosophie et l'astronomie. C'est la première mathématicienne dont la vie est bien documentée.`,
+   morphBio:`Algèbre, tables astronomiques, inventrice de l’astrolabe qui a permis de mesurer la position des étoiles)`},
+
+  {id:2, cat:'Ingénieur', name:`Sébastien Le Prestre de Vauban`,years:`1633–1707`,year:1670,img:`proto/Vauban.jpg`,
+   short:`Maréchal et maître des fortifications sous Louis XIV.`,
+   bio:`Refonda l'art du siège et des forteresses en Europe ; proposa aussi des réformes fiscales dans ses mémoires.`,
+   morphName:`Sophie Germain`, morphYears:`1776–1831`, morphImg:`proto/sophie-germain.jpg`,
+   morphShort:`Mathématicienne de génie, elle a développé des théories utilisées dans l’étude des structures et de la résistance des matériaux liées à l’architecture militaire. `,
+   morphBio:`Sophi Germain a écrit les Essais sur la théorie des nombres (1820)`},
+
+  {id:3, cat:'Ingénieur', name:`Joseph et Étienne Montgolfier`,years:`1740–1810 & 1745–1799`,year:1783,img:`proto/montgolfier.jpg`,
+   short:`Cofondateurs de l'aérostation à air chaud.`,
+   bio:`En 1783, lancement des premiers ballons à air chaud habités ; débuts de l’ère des vols humains.`,
+   morphName:`Sophie Blanchard`, morphYears:`1778–1819`, morphImg:`proto/sophie-blanchard.jpg`,
+   morphShort:`Première femme aérostière professionnelle, elle a été l'aéronaute officielle de Napoléon.`,
+   morphBio:`A fait de nombreux vols et démonstrations publiques.`},
+
+  {id:4, cat:'Ingénieur', name:`Claude Chappe`,years:`1763–1805`,year:1794,img:`proto/chappe.jpg`,
+   short:`Inventeur du télégraphe optique (sémaphore).`,
+   bio:`Un réseau de tours sémaphores transmit rapidement des dépêches d'État avant l'ère électrique.`,
+   morphName:`Hedy Lamarr`, morphYears:`1914–2000`, morphImg:`proto/hedy-lamarr.jpg`,
+   morphShort:`Inventrice du saut de fréquence, elle co-inventa une technique d'étalement de spectre, inspirant le Wi-Fi et le Bluetooth.`,
+   morphBio:`Co-inventa une technique d'étalement de spectre, inspirant Wi-Fi et Bluetooth.`},
+
+  {id:5, cat:'Ingénieur', name:`Charles Babbage`,years:`1792–1871`,year:1837,img:`proto/Babbage.jpg`,
+   short:`Concepteur de la machine analytique (proto‑ordinateur).`,
+   bio:`Imagina une machine programmable à cartes, avec mémoire et unité de calcul, préfigurant l'ordinateur.`,
+   morphName:`Ada Lovelace`, morphYears:`1815–1852`, morphImg:`proto/ada-lovelace.jpg`,
+   morphShort:`Première programmeuse, elle rédigea des algorithmes et a pressentit la création d'œuvres par des machines. Elle conçoit l'équivalent du premier programme informatique.`,
+   morphBio:`Rédigea des algorithmes et pressentit la création d'œuvres par des machines.`},
+
+  {id:6, cat:'Ingénieur', name:`Gustave Eiffel`,years:`1832–1923`,year:1889,img:`proto/Eiffel.jpg`,
+   short:`Ingénieur des structures métalliques, à l'origine de la tour Eiffel et la Statue de la Liberté.`,
+   bio:`La Tour Eiffel et le viaduc de Garabit ; travaux en aérodynamique et résistance des matériaux.`,
+   morphName:`Emily Warren Roebling`, morphYears:`1843–1903`, morphImg:`proto/emily-roebling.jpg`,
+   morphShort:`Elle a supervisé la construction du Brooklyn Bridge, symbole d'ingénierie et a assuré la coordination technique durant la convalescense de son son mari.`,
+   morphBio:`Assura la coordination technique lors de la maladie de son mari ; symbole d'ingénierie.`},
+
+  {id:7, cat:'Ingénieur', name:`Clément Ader`,years:`1841–1925`,year:1890,img:`proto/Ader.jpg`,
+   short:`Pionnier français de l'aviation (Éole).`,
+   bio:`Appareils expérimentaux et travaux d'aérodynamique avant les vols contrôlés.`,
+   morphName:`Bessie Coleman`, morphYears:`1892-1926`, morphImg:`proto/Bessie_Coleman.jpg`,
+   morphShort:`Première femme afro-américaine et amérindienne pilote et première femme américaine à recevoir une licence de pilote internationale.`,
+   morphBio:`Afro-américaine et amérindienne passionnée par l’aviation mais bloquée par la discrimination sous les Jim Crow Laws, Bessie part en France se former dans la meilleure école d’aviation du pays avant de retourner triomphante aux États-Unis.`},
+
+  {id:8, cat:'Ingénieur', name:`Thomas Edison`,years:`1847–1931`,year:1880,img:`proto/Edison.jpg`,
+   short:`Inventeur prolifique (lampe, phonographe, cinéma).`,
+   bio:`Menlo Park : R&D industrielle, plus d'un millier de brevets.`,
+   morphName:`Margaret Knight`, morphYears:`1919-2009`, morphImg:`proto/Margaret-Knight.jpg`,
+   morphShort:`Inventrice prolifique, notamment de la machine à fabriquer des sacs en papier.`,
+   morphBio:`Margaret Knight est l’inventrice la plus prolifique du 19ème siècle avec près de 27 brevets à son nom, elle était connue à sa mort comme l’Edison au féminin.`},
+
+  {id:9, cat:'Ingénieur', name:`George Eastman`,years:`1854–1932`,year:1900,img:`proto/Eastman.jpg`,
+   short:`Fondateur de Kodak ; popularise la photographie.`,
+   bio:`Films souples et appareils abordables ; démocratisation de la photo.`,
+   morphName:`Anna Atkins`, morphYears:`1799–1871`, morphImg:`proto/anna-atkins.jpg`,
+   morphShort:`Première femme à utiliser la photographie pour illustrer des ouvrages scientifiques, Anna Atkins a intégré des photographies avec la technique du cyanotype dans un ouvrage scientifique compilant 389 spécimens d’algues, ce qui en fait le premier livre illustré par la photographie.`,
+   morphBio:`Adepte de la botanique, Anna Atkins intègre des photographies avec la technique du cyanotype dans un ouvrage scientifique compilant 389 spécimens d’algues, ce que en fait le premier livre illustré par la photographie.`},
+
+  {id:10, cat:'Ingénieur', name:`Henry Ford`,years:`1863–1947`,year:1913,img:`proto/ford.jpg`,
+   short:`Production de masse automobile.`,
+   bio:`Chaîne de montage, Ford T ; transformation industrielle et sociale.`,
+   morphName:`Bertha Benz`, morphYears:`1849–1944`, morphImg:`proto/bertha-benz.jpg`,
+   morphShort:`Femme et associée de Carl Benz, Bertha Benz a participé au développement technologique du moteur thermique à deux temps et était force de proposition pour la promotion du concept de la voiture à essence qu’ils avaient produit, elle partit en excursion dans un but promotionnel, faisant d’elle la première personne à conduire une automobile sur route dans le but de voyager.
+Elle est également l'inventrice des plaquettes de frein.`,
+   morphBio:`A prouvé la viabilité automobile. Elle a réalisé le premier long trajet en voiture.`},
+
+  {id:11, cat:'Ingénieur', name:`Marius Berliet`,years:`1866–1949`,year:1916,img:`proto/Berliet.jpg`,
+   short:`Constructeur de camions et automobiles.`,
+   bio:`Rôle clé dans les véhicules industriels et militaires (Lyon).`,
+   morphName:`Camille du Gast`, morphYears:`1868-1942`, morphImg:`proto/CamilleGast.jpg`,
+   morphShort:`Surnomée la "Walkyrie de la Mécanique", pilote automobile et exploratrice, pionnières des courses de vitesse.`,
+   morphBio:`Camille du Gast s’illustre dans de nombreux sports; elle devient la première française à participer à une course automobile de vitesse. Elle est connue pour son audace, son indépendance et son engagement féministe.`},
+
+  {id:12, cat:'Ingénieur', name:`Orville & Wilbur Wright`,years:`1871–1948 & 1867–1912`,year:1903,img:`proto/Wright.jpg`,
+   short:`Premiers vols motorisés contrôlés.`,
+   bio:`Contrôle en roulis, gouvernes et vols prolongés : naissance de l’aviation moderne.`,
+   morphName:`Raymonde de Laroche`, morphYears:`1882–1919`, morphImg:`proto/raymonde-de-laroche.jpg`,
+   morphShort:`Elise Deroche, alias baronne Raymonde de Laroche, a été la première femme pilote brevetée.`,
+   morphBio:`Elise Deroche, alias baronne Raymonde de Laroche, a connu une vie trépidante. La fin de sa vie fu marqué par sa carrière de pilote.`},
+
+  {id:13, cat:'Ingénieur', name:`Louis Renault`,years:`1877–1944`,year:1910,img:`proto/Renault.jpg`,
+   short:`Ingénieur automobile.`,
+   bio:`Innovations mécaniques et production à grande échelle.`,
+   morphName:`Dorothée Pullinger`, morphYears:`1894–1986`, morphImg:`proto/dorothee-pullinger.jpg`,
+   morphShort:`Ingénieure automobile, elle a conçu des voitures adaptées aux femmes. Elle fût la seule femme durant l’après-guerre à être formée pour recruter des femmes dans les usines.`,
+   morphBio:`Elle fu la seule femme durant l’après-guerre à être formée pour recruter des femmes dans les usines.`},
+
+  {id:14, cat:'Ingénieur', name:`André Citroën`,years:`1878–1935`,year:1934,img:`proto/Citroen.jpg`,
+   short:`Industriel visionnaire (traction avant, marketing).`,
+   bio:`Modernisa la production et la publicité automobile en Europe.`,
+   morphName:`Hélène Rother`, morphYears:`1908–1999`, morphImg:`proto/Helene-Rother.jpg`,
+   morphShort:`Première femme designer automobile chez General Motors, elle a conçu des designs d’intérieurs de voitures adaptés aux femmes.`,
+   morphBio:`Hélène Rother chez General Motors a conçu des designs d’intérieurs de voitures adaptés aux femmes.`},
+
+  {id:15, cat:'Ingénieur', name:`John Logie Baird`,years:`1888–1946`,year:1926,img:`proto/baird.jpg`,
+   short:`Pionnier écossais de la télévision mécanique.`,
+   bio:`Transmission d'images à 30 lignes, premières démos publiques et couleurs précoces.`,
+   morphName:`Shirley Ann Jackson`, morphYears:`1946– `, morphImg:`proto/shirley-ann-jackson.jpg`,
+   morphShort:`Physicienne ayant contribué aux avancées des télécommunications. Ses travaux sur l’interaction des électrons et des phonons dans les semi-conducteurs ont ouvert la voie à plusieurs avancées majeures notamment dans le développement des câbles à fibre optique.`,
+   morphBio:`Les travaux de Shirley Ann Jackson sur l’interaction des électrons et des phonons dans les semi-conducteurs ont ouvert la voie à plusieurs avancées majeures dans le domaine des télécommunications, notamment dans le développement des câbles à fibre optique, essentiels à l’Internet à haut débit et aux réseaux mondiaux de communication.`},
+
+  {id:16, cat:'Ingénieur', name:`René Barthélemy`,years:`1889–1954`,year:1931,img:`proto/Barthelemy.jpg`,
+   short:`Pionnier de la télévision en France.`,
+   bio:`Expériences de télévision mécanique puis électronique ; contribution aux standards.`,
+   morphName:`Eliane Victor`, morphYears:`1918-2017`, morphImg:`proto/ElianeVictor.jpg`,
+   morphShort:`Journaliste et productrice, pionnière des documentaires télévisés, donnant la parole aux femmes.`,
+   morphBio:`Eliane Victor a marqué le paysage télévisuel en produisant des émissions et documentaires donnant la parole aux femmes.`},
+
+  {id:17, cat:'Ingénieur', name:`René Couzinet`,years:`1904–1956`,year:1933,img:`proto/couzinetr.jpg`,
+   short:`Constructeur aéronautique (Arc-en-Ciel).`,
+   bio:`Avions long courriers innovants ; design distinctif.`,
+   morphName:`Jacqueline Cochran`, morphYears:`1906–1980`, morphImg:`proto/jacqueline-cochran.jpg`,
+   morphShort:`Pionnière de l’aviation et première femme à franchir le mur du son. Elle a été pilote d'essai, dirigeante des WASP et a eu nombreux records de vitesse.`,
+   morphBio:`Pilote d'essai, dirigeante des WASP ; nombreux records de vitesse.`},
+
+  {id:18, cat:'Ingénieur', name:`Henri de France`,years:`1911–1986`,year:1967,img:`proto/france.jpg`,
+   short:`Inventeur du standard SECAM (TV couleur).`,
+   bio:`Systèmes de télévision couleur déployés en France et à l'international.`,
+   morphName:`Katharine Burr Blodgett`, morphYears:`1898–1979`, morphImg:`proto/katharine-blodgett.jpg`,
+   morphShort:`Physicienne et chimiste, cocréatrice de la pellicule Langmuir-Blodgett, permettant de créer un verre à très faible indice de réflexion. Gone with the Wind est le premier film en couleur projeté à travers une lentille avec un recouvrement basé sur le travail de Blodgett.`,
+   morphBio:`Le travail novateur de Blodgett a trouvé des applications pratiques dans la photographie, le cinéma et plus largement dans la qualité des écrans modernes. Gone with the Wind est le premier film en couleur projeté à travers une lentille avec un recouvrement basé sur le travail de Blodgett.`},
+
+  {id:19, cat:'Ingénieur', name:`Wernher von Braun`,years:`1912–1977`,year:1969,img:`proto/braun.jpg`,
+   short:`Ingénieur en fusées (Saturn V).`,
+   bio:`Des V2 au programme Apollo ; dirigea le Marshall Space Flight Center.`,
+   morphName:`Valentina Terechkova`, morphYears:`1937–`, morphImg:`proto/valentina-tereshkova.jpg`,
+   morphShort:`Première femme à être allée dans l’espace. Elle a marqué l’histoire par son vol en orbite à bord de Vostok 6. Le travail pionnier de Terechkova a ouvert la voie à une plus grande présence des femmes dans l’exploration spatiale.`,
+   morphBio:`Valentina Terechkova, en devenant la première femme cosmonaute, a marqué l’histoire par son vol en orbite à bord de Vostok 6. Le travail pionnier de Terechkova a ouvert la voie à une plus grande présence des femmes dans l’exploration spatiale et a inspiré de nombreuses générations. `},
+
+  // === 23 Savants ===
+  {id:20, cat:'Savant', name:`Galileo Galilei`,years:`1564–1642`,year:1610,img:`proto/galilee.jpg`,
+   short:`Fondateur de la physique moderne et de l'astronomie expérimentale.`,
+   bio:`Observations télescopiques (lunes de Jupiter), méthode expérimentale, défense de l'héliocentrisme.`,
+   morphName:`Jeanne Dumée`, morphYears:`1660-1706`, morphImg:`proto/JeanneDumee.jpg`,
+   morphShort:`Auteure d’un traité défendant le système de Copernic affirmant avec conviction la place de la Terre autour du Soleil. Seul ce traité nous permet d'attester de son identité.`,
+   morphBio:`Sa voix, rare dans un monde dominé par les hommes, a donné une légitimité nouvelle aux femmes dans les sciences.`},
+
+  {id:21, cat:'Savant', name:`Isaac Newton`,years:`1642–1727`,year:1687,img:`proto/newton.jpg`,
+   short:`Lois du mouvement et de la gravitation universelle.`,
+   bio:`Principia Mathematica ; optique et calcul infinitésimal.`,
+   morphName:`Émilie du Châtelet`, morphYears:`1706-1749`, morphImg:`proto/Chatelet.jpg`,
+   morphShort:`Femme de lettres, mathématicienne et physicienne française, elle est une figure du Siècle des Lumières. Elle a traduit et commenté les Principia Mathematica de Newton, rendant ses théories accessibles en France et en Europe.`,
+   morphBio:`Son travail a non seulement diffusé les idées de Newton mais a aussi contribué à leur rayonnement durable en Europe.`},
+
+  {id:22, cat:'Savant', name:`William Herschel`,years:`1738–1822`,year:1781,img:`proto/william-herschel.jpg`,
+   short:`Découvreur d'Uranus ; pionnier de l'astronomie infrarouge.`,
+   bio:`Cartographie de la Voie lactée ; découverte du rayonnement infrarouge.`,
+   morphName:`Caroline Herschel`, morphYears:`1750–1848`, morphImg:`proto/caroline-herschel.jpg`,
+   morphShort:`Découvre plusieurs comètes et affine les catalogues d'étoiles. Avec son frère William, ils perfectionnent leurs télescopes, fabriquant une série de dispositifs de plus en plus grands, jusqu'à obtenir le fameux instrument de 40 pieds de distance focale.`,
+   morphBio:`Travaille avec son frère William et ils perfectionnent leurs télescopes, fabriquant une série de dispositifs de plus en plus grands, jusqu'à obtenir le fameux instrument de 40 pieds de distance focale.`},
+
+  {id:23, cat:'Savant', name:`Blaise Pascal`,years:`1623–1662`,year:1654,img:`proto/pascal.jpg`,
+   short:`Mathématicien, physicien et philosophe.`,
+   bio:`Presse hydraulique, machine à calculer (Pascaline), probabilités.`,
+   morphName:`Margaret Cavendish`, morphYears:`1623-1673`, morphImg:`proto/margaretcavendish.jpg`,
+   morphShort:`Philosophe, autrice de traités sur la matière, l’atome et la pensée scientifique. Elle avait pris la défense des droits des femmes contre les rôles de genres stéréotypés.`,
+   morphBio:`Elle prend la défense des droits des femmes contre les rôles de genres stéréotypés.`},
+
+  {id:24, cat:'Savant', name:`Georg Simon Ohm`,years:`1789–1854`,year:1827,img:`proto/ohm.jpg`,
+   short:`Physicien, il formule la loi d'Ohm sur la résistance électrique`,
+   bio:`Relation U=RI, fondement de l'électrocinétique.`,
+   morphName:`Hertha Ayrton`, morphYears:`1854–1923`, morphImg:`proto/hertha-ayrton.jpg`,
+   morphShort:`Mathématicienne, inventrice et ingénieure britannique. Elle est renommée pour les travaux scientifiques sur l'arc électrique et la dynamique des vagues.`,
+   morphBio:`Recherche appliquée et distinctions scientifiques, notamment la Hughes Medal.`},
+
+  {id:25, cat:'Savant', name:`Sadi Carnot`,years:`1796–1832`,year:1824,img:`proto/carnot.jpg`,
+   short:`Fondateur de la thermodynamique.`,
+   bio:`Cycle de Carnot ; rendements des machines thermiques.`,
+   morphName:`Emmy Noether`, morphYears:`1882–1935`, morphImg:`proto/emmynoether.jpg`,
+   morphShort:`Mathématicienne allemande spécialiste d'algèbre abstraite et de physique théorique.  En physique, le théorème de Noether explique le lien fondamental entre la symétrie et les lois de conservation, et est considéré comme aussi important que la théorie de la relativité.`,
+   morphBio:`Elle a révolutionné les théories des anneaux, des corps et des algèbres.`},
+
+  {id:26, cat:'Savant', name:`Charles Darwin`,years:`1809–1882`,year:1859,img:`proto/darwin.jpg`,
+   short:`Théorie de l'évolution par sélection naturelle.`,
+   bio:`« L’Origine des espèces » ; observations au cours du Beagle.`,
+   morphName:`Marianne North`, morphYears:`1830-1890`, morphImg:`proto/marianne-north.jpg`,
+   morphShort:`Naturaliste et illustratrice botanique anglaise, elle a voyagé dans le monde entier pour pouvoir documenter la flore tropicale.`,
+   morphBio:`Botaniste et illustratrice, elle a voyagé dans le monde entier pour pouvoir documenter la flore tropicale.`},
+
+  {id:27, cat:'Savant', name:`William Crookes`,years:`1832–1919`,year:1870,img:`proto/crookes.jpg`,
+   short:`Découvreur du thallium et inventeur des tubes cathodiques.`,
+   bio:`Travaux pionniers sur les rayonnements cathodiques et la radiométrie.`,
+   morphName:`Irène Joliot-Curie`, morphYears:`1897–1956`, morphImg:`proto/irene-joliot-curie.jpg`,
+   morphShort:`Chimiste, physicienne et femme politique; Pour ses travaux sur les rayons X du polonium, elle reçoit le prix Nobel en 1935.`,
+   morphBio:`Irène Joliot-Curie a utilisé et contribué à développer les applications des rayons X en médecine, et plus largement à l’avancement de la physique nucléaire par la découverte de la radioactivité artificielle.`},
+
+  {id:28, cat:'Savant', name:`Heinrich Hertz`,years:`1857–1894`,year:1887,img:`proto/hertz.jpg`,
+   short:`Découvre les ondes électromagnétiques.`,
+   bio:`Vérifie expérimentalement la théorie de Maxwell ; base de la TSF.`,
+   morphName:`Elizabeth Fleischman`, morphYears:`1867-1905`, morphImg:`proto/elisabethfleishman.jpg`,
+   morphShort:`Elle est une pionnière de la radiologie médicale, ayant utilisé les rayons X depuis 1896.`,
+   morphBio:`Elizabeth Fleischman a été l’une des premières à utiliser la radiographie médicale pour visualiser les structures internes du corps humain, transformant cette découverte fondamentale en un outil concret au service de la santé.`},
+
+  {id:29, cat:'Savant', name:`Max Planck`,years:`1858–1947`,year:1900,img:`proto/planck.jpg`,
+   short:`Fondateur de la mécanique quantique.`,
+   bio:`Hypothèse de quantification de l’énergie ; constante de Planck.`,
+   morphName:`Maria Goeppert-Mayer`, morphYears:`1906-1972`, morphImg:`proto/Maria_Goeppert-Mayer.jpg`,
+   morphShort:`Physicienne germano-américaine. Elle développe le modèle en couches qui lui vaudra plus tard le prix Nobel de physique de 1963 pour les découvertes à propos de la structure en couches du noyau atomique. `,
+   morphBio:`Après Marie Curie qui l'obtient en 1903, elle est la deuxième femme à avoir obtenu le prix Nobel de physique.`},
+
+  {id:30, cat:'Savant', name:`Guglielmo Marconi`,years:`1874–1937`,year:1901,img:`proto/marconi.jpg`,
+   short:`Pionnier de la télégraphie sans fil.`,
+   bio:`Transmission transatlantique ; développement de la radio.`,
+   morphName:`Agnes Meyer Driscoll`, morphYears:`1889-1971`, morphImg:`proto/Agnes_meyer_driscoll.jpg`,
+   morphShort:`Cryptanalyste américaine, pionnière du décryptage des communications radio japonaises, entre les deux guerres mondiales. A développé des systèmes de transmission radio sécurisés et des méthodes de cryptographie pour la marine américaine.`,
+   morphBio:`Elle a perfectionné les systèmes de transmission radio sécurisés et la cryptographie, rendant les communications plus fiables et sûres. Son travail a étendu l’impact pratique des ondes radio, en permettant des usages militaires et civils avancés longtemps après les premières découvertes de Marconi..`},
+
+  {id:31, cat:'Savant', name:`Albert Einstein`,years:`1879–1955`,year:1915,img:`proto/einstein.jpg`,
+   short:`Relativité restreinte et générale.`,
+   bio:`Effet photoélectrique (Nobel), équivalence masse-énergie, espace-temps courbe.`,
+   morphName:`Mileva Maric`, morphYears:`1875–1948`, morphImg:`proto/milevaMaric.jpg`,
+   morphShort:`Mathématicienne et physicienne. Elle est également la première épouse d’Einstein. Son apport, souvent méconnu, a joué un rôle crucial dans la rigueur scientifique et l’élaboration des concepts qui ont transformé notre compréhension de l’espace et du temps.`,
+   morphBio:`Première épouse d’Einstein Mileva Maric a collaboré étroitement avec lui lors de ses premières recherches sur la relativité restreinte, contribuant aux calculs et aux idées qui ont fondé cette théorie révolutionnaire. Son apport, souvent méconnu, a joué un rôle crucial dans la rigueur scientifique et l’élaboration des concepts qui ont transformé notre compréhension de l’espace et du temps. `},
+
+  {id:32, cat:'Savant', name:`Max von Laue`,years:`1874–1960`,year:1912,img:`proto/vonlaue.jpg`,
+   short:`Découverte de la diffraction des rayons X par les cristaux et reçoit le prix Nobel en 1914.`,
+   bio:`Montre la nature ondulatoire des rayons X et la structure cristalline.`,
+   morphName:`Dorothy Hodgkin`, morphYears:`1910–1994`, morphImg:`proto/dorothy-hodgkin.jpg`,
+   morphShort:`Chimiste britannique. Dorothy Crowfoot Hodgkin a utilisé la diffraction des rayons X pour élucider la structure de molécules complexes comme la pénicilline, la vitamine B12 ou encore l’insuline.`,
+   morphBio:`La diffractométrie est une méthode de cristallographie permettant de déterminer la géométrie en trois dimensions de molécules complexes, en particulier de molécules d'origine biologique.`},
+
+  {id:33, cat:'Savant', name:`Otto Hahn`,years:`1879–1968`,year:1938,img:`proto/hahn.jpg`,
+   short:`Découverte de la fission nucléaire (Nobel).`,
+   bio:`Expériences sur l’uranium ; identification de produits de fission.`,
+   morphName:`Lise Meitner`, morphYears:`1878–1968`, morphImg:`proto/lise-meitner.jpg`,
+   morphShort:`Physicienne autrichienne naturalisée suédoise. Elle a fait des analyses théoriques de la fission nucléaire. Elle se consacra entre autres à l'étude des spectres de rayonnements bêta et gamma.`,
+   morphBio:`Lise Meitner mena des recherches pionnières en physique nucléaire. Elle se consacra entre autres à l'étude des spectres de rayonnements bêta et gamma.`},
+
+  {id:34, cat:'Savant', name:`Marie Curie`,years:`1867–1934`,year:1903,img:`proto/marie-curie.jpg`,
+   short:`Radioactivité ; deux prix Nobel.`,
+   bio:`Découverte du polonium et du radium ; physique et chimie de la radioactivité.`,
+   morphName:`Marie Curie`, morphYears:`1859–1906`, morphImg:`proto/marie-curie.jpg`,
+   morphShort:`Spoiler! Marie Curie est déjà une femme...On cherche encore un scientifique qui pourrait l'égaler! Certains rêveraient bien de lêtre.`,
+   morphBio:`Spoiler! Marie Curie est déjà une femme...On cherche encore un scientifique qui pourrait l'égaler! Certains rêveraient bien de lêtre. `},
+
+  {id:35, cat:'Savant', name:`Louis Pasteur`,years:`1822–1895`,year:1864,img:`proto/pasteur.jpg`,
+   short:`Microbiologie, vaccination, pasteurisation.`,
+   bio:`Théorie des germes ; vaccins contre la rage et l’anthrax.`,
+   morphName:`Alice Catherine Evans`, morphYears:`1881–1975`, morphImg:`proto/evans.jpg`,
+   morphShort:`Microbiologiste américaine. Elle a démontré la transmission microbienne dans le lait et a fait des travaux sur la pasteurisation du lait (1918)`,
+   morphBio:`Alice Catherine Evans a étudié les bactéries présentes dans le lait et leur impact sur la santé humaine, mettant en évidence la nécessité de la pasteurisation. (1918)`},
+
+  {id:36, cat:'Savant', name:`Julius Robert Oppenheimer`,years:`1904–1967`,year:1945,img:`proto/oppenheimer.jpg`,
+   short:`Physicien théoricien, direction scientifique du Projet Manhattan.`,
+   bio:`Supervision des recherches nucléaires ; réflexions éthiques postérieures.`,
+   morphName:`Katharine Way`, morphYears:`1902–1995`, morphImg:`proto/Katharine_Way.jpg`,
+   morphShort:`Physicienne américaine, spécialiste des constantes nucléaires. Elle a compilé des données critiques pour le projet Manhattan.`,
+   morphBio:`Physicienne nucléaire, elle est connue pour ses travaux sur le Projet des Données Nucléaires . Elle a par la suite compilé des données critiques pour le projet Manhattan.`},
+
+  {id:37, cat:'Savant', name:`Ernest Rutherford`,years:`1871–1937`,year:1911,img:`proto/rutherford.jpg`,
+   short:`Découvre le noyau atomique ; père de la physique nucléaire.`,
+   bio:`Diffusion alpha, modèle planétaire de l’atome, transmutations.`,
+   morphName:`Chien-Shiung Wu`, morphYears:`1912-1997`, morphImg:`proto/chien-shiung-wu.jpg`,
+   morphShort:`Physiciene, spécialiste en physique nucléaire, elle a travaillé à l'enrichissement de l'uranium pour le projet Manhattan.`,
+   morphBio:`Elle a démontré expérimentalement en 1956 la non-conservation de la parité dans les interactions faibles, proposée sur des bases théoriques quelques mois auparavant par Lee et Yang.`},
+
+  {id:38, cat:'Savant', name:`Wilhelm Conrad Röntgen`,years:`1845–1923`,year:1895,img:`proto/roentgen.jpg`,
+   short:`Découvre les rayons X (Nobel).`,
+   bio:`Imagerie médicale révolutionnée ; premières radiographies.`,
+   morphName:`Mária Telkes`, morphYears:`1900–1995`, morphImg:`proto/maria-telkes.jpg`,
+   morphShort:`Scientifique et inventeuse américano-hongroise; pionnière dans le domaine de l’énergie solaire et de l'énergie produite par des organismes vivants.`,
+   morphBio:`Elle a travaillé sur les technologies liées à l'énergie solaire (stockage, habitat), elle était surnomée "The Sun Queen".`},
+
+  {id:39, cat:'Savant', name:`Marcellin Berthelot`,years:`1827–1907`,year:1860,img:`proto/berthelot.jpg`,
+   short:`Chimiste, synthèse organique et thermochimie.`,
+   bio:`Travaux sur les affinités chimiques et la chaleur de réaction.`,
+   morphName:`Elizabeth Fulhame`, morphYears:`1759–1810`, morphImg:`proto/elizabethFulhame.jpg`,
+   morphShort:`Chimiste écossaise, elle a décrit le processus de catalyse et de photo-réduction. Elle décrit le phénomène de catalyse dans "Essay Combustion (1794)", quarante ans avant que Jöns Berzelius ne le nomme en 1835. Il n'existe aucun portrait retrouvé d'Elizabeth Fulhame.`,
+   morphBio:`Elle décrit le phénomène de catalyse Essay Combustion (1794) quarante ans avant que Jöns Berzelius le nomme en 1835. `},
+
+  {id:40, cat:'Savant', name:`Enrico Fermi`,years:`1901–1954`,year:1942,img:`proto/fermi.jpg`,
+   short:`Premier réacteur nucléaire ; physique des particules.`,
+   bio:`Réalisations majeures en neutronique, statistiques et accélérateurs.`,
+   morphName:`Darleane Hoffman`, morphYears:`1926-2025`, morphImg:`proto/Darleane-C-Hoffman.jpg`,
+   morphShort:`Chimiste américaine, spécialiste de la chimie nucléaire, elle a co-découvert l’élément 106 (seaborgium).`,
+   morphBio:`Elle a étudié les propriétés chimiques et nucléaires des éléments transuranium et a confirmé l'existence du séaborgium.`},
+
+  {id:41, cat:'Savant', name:`Félix Wankel`,years:`1902–1988`,year:1957,img:`proto/wankel.jpg`,
+   short:`Inventeur du moteur rotatif Wankel.`,
+   bio:`Architecture compacte et fluide ; applications automobiles et aéronautiques.`,
+   morphName:`Ira Rischowski`, morphYears:`1899-1989`, morphImg:`proto/ira-rischowski.jpg`,
+   morphShort:`Ingénieure mécanicienne, résistante durant la seconde guerre mondiale ayant contribué à l’ingénierie industrielle en Allemagne.`,
+   morphBio:`A écrit un rapport sur l'égalité de rémunération entre les femmes en ingénierie, qui concluait qu'il n'y avait pas de justification pour que les femmes touchent moins en terme de salaire.`},
+
+  {id:42, cat:'Savant', name:`Ivan Petrovitch Pavlov`,years:`1849–1936`,year:1904,img:`proto/pavlov.jpg`,
+   short:`Physiologie ; réflexe conditionné (Nobel).`,
+   bio:`Expériences sur la digestion et le conditionnement.`,
+   morphName:`Brenda Milner`, morphYears:`1918–...`, morphImg:`proto/brendaMilner.jpg`,
+   morphShort:`Pionnière des neurosciences cognitives, elle a fait des recherches sur le rôle du lobe temporal du cerveau dans les mécanismes de la mémoire épisodique, à partir d'un patient amnésique.`,
+   morphBio:`Elle a fait des travaux dans l'équipe de recherches de Wilder Penfield, sur le rôle du lobe temporal du cerveau dans les mécanismes de la mémoire épisodique, à partir d'un patient amnésique.`}, ];
+
+// Tri par défaut (date)
+items.sort((a,b)=>a.year-b.year);
+
+// ==== ELEMENTS
+const band=document.getElementById("band");
+const mini=document.getElementById("mini");
+const timeline=document.getElementById("timeline");
+const centralBox=document.getElementById("centralBox");
+const centralImg=document.getElementById("centralImg");
+const centralName=document.getElementById("centralName");
+const centralYears=document.getElementById("centralYears");
+const centralShort=document.getElementById("centralShort");
+const morphBtn=document.getElementById("morphBtn");
+const closeBtn=document.getElementById("closeBtn");
+const extraInfo=document.getElementById("extraInfo");
+const sameDomainList=document.getElementById("sameDomainList");
+const detailedDesc=document.getElementById("detailedDesc");
+let current=0, morphed=false, sortMode="date";
+
+// ==== BUILD UI (fonction réutilisable)
+function buildUI(){
+    band.innerHTML=""; mini.innerHTML=""; timeline.innerHTML="";
+    items.forEach((it,i)=>{
+        const p=document.createElement("div"); p.className="portrait"; p.dataset.index=i;
+        p.innerHTML=`<img src="${it.img}" alt="${it.name}" class="active"><div class="overlay"><h3>${it.name}</h3><p>${it.years}</p></div>
+                     <div class="picto ${it.cat==='Ingénieur'?'engineer':'scientist'}">${it.cat==='Ingénieur'?'E':'S'}</div>`;
+        band.appendChild(p);
+
+        const m=document.createElement("div"); m.className="mini-item"; m.dataset.index=i;
+        m.innerHTML=`<img src="${it.img}" style="filter: grayscale(100%);"><span>${it.years.split('--')[0]}</span>`;
+        mini.appendChild(m);
+
+        const t=document.createElement("div"); t.className="timeline-point"; t.dataset.index=i;
+        t.style.left=(i/(items.length-1)*100)+"%"; t.dataset.year=it.year;
+        timeline.appendChild(t);
+    });
+
+    // Réattacher les événements
+    document.querySelectorAll(".portrait").forEach(p=> p.onclick=()=>{ select(+p.dataset.index); openCentral(); });
+    document.querySelectorAll(".mini-item").forEach(m=> m.onclick=()=>{ select(+m.dataset.index); openCentral(); });
+    document.querySelectorAll(".timeline-point").forEach(pt=> pt.onclick=()=>{ select(+pt.dataset.index); openCentral(); });
+}
+buildUI();
+
+// ==== SELECT
+function select(i){
+    current=i; morphed=false;
+    const it=items[i];
+    document.querySelectorAll(".portrait").forEach(el=>el.classList.toggle("active",+el.dataset.index===i));
+    document.querySelectorAll(".mini-item").forEach(el=>el.classList.toggle("active",+el.dataset.index===i));
+    document.querySelectorAll(".timeline-point").forEach(el=>el.classList.toggle("active",+el.dataset.index===i));
+
+    centralImg.src=it.img;
+    centralName.textContent=it.name;
+    centralYears.textContent=it.years;
+    centralShort.textContent=it.short;
+    morphBtn.textContent=`Et si ${it.name} était une femme ?`;
+    extraInfo.style.display="none";
+
+    sameDomainList.innerHTML = items.filter(x=>x.cat===it.cat && x.name!==it.name)
+                                    .map(x=>`<li>${x.name}</li>`).join('');
+    detailedDesc.textContent=it.bio;
+
+    document.querySelectorAll(".portrait")[i].scrollIntoView({behavior:"smooth",inline:"center"});
+    document.querySelectorAll(".mini-item")[i].scrollIntoView({behavior:"smooth",inline:"center"});
+}
+
+// ==== MORPHING
+morphBtn.onclick = () => {
+    const it=items[current];
+    if(!morphed){
+        centralImg.src=it.morphImg;
+        centralName.textContent=it.morphName;
+        centralYears.textContent=it.morphYears;
+        centralShort.textContent=it.morphShort;
+        detailedDesc.textContent=it.morphBio;
+        morphBtn.textContent=`Retour à ${it.name}`;
+        morphed=true;
+    } else select(current);
+};
+
+// ==== RANDOM & THEME
+document.getElementById("randomBtn").onclick=()=> { select(Math.floor(Math.random()*items.length)); openCentral(); };
+document.getElementById("themeBtn").onclick=()=> {
+    document.body.classList.toggle("light");
+    document.getElementById("themeBtn").textContent=document.body.classList.contains("light")?"🌙":"🌞";
+};
+
+// ==== POPUPS
+document.getElementById("helpBtn").onclick=()=> document.getElementById("helpPopup").classList.add("active");
+document.getElementById("artistBtn").onclick=()=> document.getElementById("artistPopup").classList.add("active");
+document.getElementById("workBtn").onclick=()=> document.getElementById("workPopup").classList.add("active");
+function closePopup(id){document.getElementById(id).classList.remove("active");}
+    
+/* === Quiz system === */
+const quizPopup = document.getElementById('quizPopup');
+const quizQuestionEl = document.getElementById('quizQuestion');
+const quizOptionsEl = document.getElementById('quizOptions');
+const quizResultEl = document.getElementById('quizResult');
+const newQuizBtn = document.getElementById('newQuizBtn');
+let currentQuiz = null;
+
+// Bouton Quiz → ouvre popup et génère une question
+document.getElementById('quizBtn').addEventListener('click', ()=> {
+    const person = items[current];
+    document.getElementById('quizPersonName').textContent = person.name;
+    quizPopup.classList.add('active');
+    setTimeout(()=>generateQuizFor(person), 50);
+});
+
+newQuizBtn.addEventListener('click', ()=> {
+    generateQuizFor(items[current]);
+});
+
+/* Génération d’un quiz : chaque scientifique a 3 questions possibles */
+function generateQuizFor(person){
+    quizResultEl.className = 'quiz-result';
+    quizResultEl.textContent='';
+    quizResultEl.style.display='none';
+    quizOptionsEl.innerHTML = '';
+    quizQuestionEl.textContent = 'Génération question...';
+    currentQuiz = null;
+
+    const pool = [];
+
+    // Domaine
+    if(person.cat){
+        pool.push({
+            q: `Quel est le principal domaine associé à ${person.name} ?`,
+            options: shuffle([
+                person.cat,
+                person.cat==="Ingénieur"?"Savant":"Ingénieur",
+                "Artiste",
+                "Philosophe"
+            ]),
+            answer: person.cat,
+            explanation: `${person.name} est classé(e) comme ${person.cat}.`
+        });
+    }
+
+    // Résumé court
+    if(person.short){
+        const correct = person.short;
+        const distractors = shuffle(items.filter(i=>i.id!==person.id).map(i=>i.short)).slice(0,3);
+        pool.push({
+            q: `Quelle phrase résume le mieux la contribution de ${person.name} ?`,
+            options: shuffle([correct, ...distractors]),
+            answer: correct,
+            explanation: `Résumé : ${person.short}`
+        });
+    }
+
+    // Siècle
+    const generic = {
+        q: `Quel siècle correspond principalement à la période où ${person.name} a vécu ?`,
+        options: generateCenturyOptions(person.year),
+        answer: centuryOf(person.year),
+        explanation: `Années indiquées : ${person.years}.`
+    };
+    pool.push(generic);
+
+    // Choix aléatoire parmi les 3 disponibles
+    const chosen = pool[Math.floor(Math.random()*pool.length)];
+    currentQuiz = chosen;
+    displayQuiz(chosen);
+}
+
+function displayQuiz(quiz){
+    quizQuestionEl.textContent = quiz.q;
+    quizOptionsEl.innerHTML = '';
+    quiz.options.forEach(opt => {
+        const div = document.createElement('div');
+        div.className='quiz-option';
+        div.textContent = opt;
+        div.setAttribute('data-opt', opt);
+        div.addEventListener('click', ()=> handleAnswer(div, quiz));
+        quizOptionsEl.appendChild(div);
+    });
+    quizResultEl.className = 'quiz-result';
+    quizResultEl.style.display='none';
+}
+
+function handleAnswer(optionEl, quiz){
+    const selected = optionEl.getAttribute('data-opt');
+    Array.from(quizOptionsEl.children).forEach(c => c.style.pointerEvents = 'none');
+    if(selected === quiz.answer){
+        optionEl.classList.add('correct');
+        quizResultEl.textContent = '✅ Bonne réponse ! ' + (quiz.explanation || '');
+        quizResultEl.classList.add('show');
+        quizResultEl.style.display='block';
+        quizResultEl.style.background='rgba(76,175,80,0.12)';
+    } else {
+        optionEl.classList.add('incorrect');
+        Array.from(quizOptionsEl.children).forEach(c => {
+            if(c.getAttribute('data-opt') === quiz.answer) c.classList.add('correct');
+        });
+        quizResultEl.textContent = '❌ Mauvaise réponse. ' + (quiz.explanation || '');
+        quizResultEl.classList.add('show');
+        quizResultEl.style.display='block';
+        quizResultEl.style.background='rgba(244,67,54,0.08)';
+    }
+}
+
+/* Helpers */
+function shuffle(arr){ return arr.slice().sort(()=>Math.random()-0.5); }
+function centuryOf(year){
+    if(!year) return 'Période inconnue';
+    const century = Math.ceil(year/100);
+    return `Le ${century}ᵉ siècle`;
+}
+function generateCenturyOptions(year){
+    const correct = centuryOf(year);
+    if(!year) return shuffle([correct, "Le 17ᵉ siècle", "Le 18ᵉ siècle", "Le 19ᵉ siècle"]);
+    const c = Math.ceil(year/100);
+    const opts = [
+        `Le ${c}ᵉ siècle`,
+        `Le ${c-1}ᵉ siècle`,
+        `Le ${c+1}ᵉ siècle`,
+        `Le ${Math.max(1,c-2)}ᵉ siècle`
+    ];
+    return shuffle(opts);
+}
+
+
+// ==== TRI (nouvelle fonctionnalité)
+document.getElementById("sortBtn").onclick=()=>{
+    if(sortMode==="date"){
+        // Ingénieurs d'abord puis savants
+        items.sort((a,b)=>{
+            if(a.cat===b.cat) return a.year-b.year;
+            return a.cat==="Ingénieur"?-1:1;
+        });
+        sortMode="profil";
+        document.getElementById("sortBtn").textContent="Tri par date";
+    } else {
+        // Tri chronologique simple
+        items.sort((a,b)=>a.year-b.year);
+        sortMode="date";
+        document.getElementById("sortBtn").textContent="Tri par profil";
+    }
+    buildUI();
+    select(0);
+};
+
+// ==== AUTO ROTATE
+let autoRotateInterval = null;
+function startAutoRotate(intervalMs=5000){
+    stopAutoRotate();
+    autoRotateInterval = setInterval(()=> {
+        select((current+1)%items.length);
+    }, intervalMs);
+}
+function stopAutoRotate(){
+    if(autoRotateInterval!==null){ clearInterval(autoRotateInterval); autoRotateInterval = null; }
+}
+
+// Ouvrir/fermer central
+function openCentral(){
+    centralBox.classList.add("active");
+    stopAutoRotate();
+    band.style.pointerEvents = "none";
+    mini.style.pointerEvents = "none";
+}
+function closeCentral(){
+    centralBox.classList.remove("active");
+    startAutoRotate(5000);
+    band.style.pointerEvents = "";
+    mini.style.pointerEvents = "";
+}
+closeBtn.onclick=()=> closeCentral();
+
+// ==== INITIAL
+select(0);
+startAutoRotate(5000);
+</script>
+
+</body>
+</html>
